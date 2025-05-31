@@ -1,16 +1,23 @@
 import os
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.idle import idle
 
 # Configs
-API_HASH =  os.getenv['API_HASH','b33ae6134914c512d7f4246048af4a9c']
-APP_ID = int( os.getenv['APP_ID','25075806'])
-BOT_TOKEN = os.getenv['BOT_TOKEN','7151281361:AAGsXDCAyq2GPL5FlbC5kB8WYmbuLQpbRxg']
-TRACK_CHANNEL = os.getenv['TRACK_CHANNEL','File_sharing07_bot']
-OWNER_ID =  os.getenv['OWNER_ID']
+API_HASH = os.getenv('API_HASH', 'b33ae6134914c512d7f4246048af4a9c')
+APP_ID = int(os.getenv('APP_ID', '25075806'))
+BOT_TOKEN = os.getenv('BOT_TOKEN', '7151281361:AAGsXDCAyq2GPL5FlbC5kB8WYmbuLQpbRxg')
+TRACK_CHANNEL = os.getenv('TRACK_CHANNEL', 'File_sharing07_bot')
+OWNER_ID = os.getenv('OWNER_ID', 'all')
 
-#Button
-START_BUTTONS=[
+# Bot client
+xbot = Client('File-Sharing', api_id=APP_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+xbot_username = None
+media_group_id = 0
+
+# Buttons
+START_BUTTONS = [
     [
         InlineKeyboardButton('Source', url='https://github.com/X-Gorn/File-Sharing'),
         InlineKeyboardButton('Project Channel', url='https://t.me/xTeamBots'),
@@ -18,117 +25,100 @@ START_BUTTONS=[
     [InlineKeyboardButton('Author', url="https://t.me/xgorn")],
 ]
 
-# Running bot
-xbot = Client('File-Sharing', api_id=APP_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-# Notify about bot start
-with xbot:
-    xbot_username = xbot.get_me().username  # Better call it global once due to telegram flood id
-    print("Bot started!")
-    xbot.send_message(int(OWNER_ID), "Bot started!")
-
-
-# Start & Get file
+# /start command
 @xbot.on_message(filters.command('start') & filters.private)
-async def _startfile(bot, update):
-    if update.text == '/start':
-        await update.reply_text(
-            f"I'm File-Sharing!\nYou can share any telegram files and get the sharing link using this bot!\n\n/help for more details...",
-            True, reply_markup=InlineKeyboardMarkup(START_BUTTONS))
+async def start_handler(bot, message):
+    global xbot_username
+    if not xbot_username:
+        xbot_username = (await bot.get_me()).username
+
+    if message.text == '/start':
+        await message.reply_text(
+            "I'm File-Sharing!\nYou can share any telegram files and get the sharing link using this bot!\n\n/help for more details...",
+            reply_markup=InlineKeyboardMarkup(START_BUTTONS)
+        )
         return
 
-    if len(update.command) != 2:
+    if len(message.command) != 2:
         return
-    code = update.command[1]
+
+    code = message.command[1]
     if '-' in code:
         msg_id = code.split('-')[-1]
-        # due to new type of file_unique_id, it can contain "-" sign like "agadyruaas-puuo"
-        unique_id = '-'.join(code.split('-')[0:-1])
-
+        unique_id = '-'.join(code.split('-')[:-1])
         if not msg_id.isdigit():
             return
-        try:  # If message not belong to media group raise exception
+
+        try:
             check_media_group = await bot.get_media_group(TRACK_CHANNEL, int(msg_id))
-            check = check_media_group[0]  # Because func return`s list obj
+            check = check_media_group[0]
         except Exception:
             check = await bot.get_messages(TRACK_CHANNEL, int(msg_id))
 
         if check.empty:
-            await update.reply_text('Error: [Message does not exist]\n/help for more details...')
+            await message.reply_text('Error: [Message does not exist]')
             return
-        if check.video:
-            unique_idx = check.video.file_unique_id
-        elif check.photo:
-            unique_idx = check.photo.file_unique_id
-        elif check.audio:
-            unique_idx = check.audio.file_unique_id
-        elif check.document:
-            unique_idx = check.document.file_unique_id
-        elif check.sticker:
-            unique_idx = check.sticker.file_unique_id
-        elif check.animation:
-            unique_idx = check.animation.file_unique_id
-        elif check.voice:
-            unique_idx = check.voice.file_unique_id
-        elif check.video_note:
-            unique_idx = check.video_note.file_unique_id
+
+        file = (
+            check.video or check.photo or check.audio or
+            check.document or check.sticker or check.animation or
+            check.voice or check.video_note
+        )
+        if not file:
+            return
+
+        unique_idx = file.file_unique_id
         if unique_id != unique_idx.lower():
             return
-        try:  # If message not belong to media group raise exception
-            await bot.copy_media_group(update.from_user.id, TRACK_CHANNEL, int(msg_id))
+
+        try:
+            await bot.copy_media_group(message.from_user.id, TRACK_CHANNEL, int(msg_id))
         except Exception:
-            await check.copy(update.from_user.id)
-    else:
-        return
+            await check.copy(message.from_user.id)
 
 
-# Help msg
+# /help
 @xbot.on_message(filters.command('help') & filters.private)
-async def _help(bot, update):
-    await update.reply_text("Supported file types:\n\n- Video\n- Audio\n- Photo\n- Document\n- Sticker\n- GIF\n- Voice note\n- Video note\n\n If bot didn't respond, contact @xgorn", True)
+async def help_handler(bot, message):
+    await message.reply_text(
+        "Supported file types:\n\n- Video\n- Audio\n- Photo\n- Document\n- Sticker\n- GIF\n- Voice note\n- Video note\n\nIf bot didn't respond, contact @xgorn",
+        quote=True
+    )
 
 
+# Send reply with link
 async def __reply(update, copied):
-    msg_id = copied.message_id
-    if copied.video:
-        unique_idx = copied.video.file_unique_id
-    elif copied.photo:
-        unique_idx = copied.photo.file_unique_id
-    elif copied.audio:
-        unique_idx = copied.audio.file_unique_id
-    elif copied.document:
-        unique_idx = copied.document.file_unique_id
-    elif copied.sticker:
-        unique_idx = copied.sticker.file_unique_id
-    elif copied.animation:
-        unique_idx = copied.animation.file_unique_id
-    elif copied.voice:
-        unique_idx = copied.voice.file_unique_id
-    elif copied.video_note:
-        unique_idx = copied.video_note.file_unique_id
-    else:
+    global xbot_username
+    if not xbot_username:
+        xbot_username = (await xbot.get_me()).username
+
+    file = (
+        copied.video or copied.photo or copied.audio or
+        copied.document or copied.sticker or copied.animation or
+        copied.voice or copied.video_note
+    )
+    if not file:
         await copied.delete()
         return
 
+    unique_idx = file.file_unique_id
+    msg_id = copied.message_id
+
     await update.reply_text(
         'Here is Your Sharing Link:',
-        True,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton('Sharing Link',
-                                  url=f'https://t.me/{xbot_username}?start={unique_idx.lower()}-{str(msg_id)}')]
+                                  url=f'https://t.me/{xbot_username}?start={unique_idx.lower()}-{msg_id}')]
         ])
     )
-    await asyncio.sleep(0.5)  # Wait do to avoid 5 sec flood ban 
+    await asyncio.sleep(0.5)
 
-# Store media_group
-media_group_id = 0
+
+# Media group handler
 @xbot.on_message(filters.media & filters.private & filters.media_group)
-async def _main_grop(bot, update):
+async def group_handler(bot, update):
     global media_group_id
-    if OWNER_ID == 'all':
-        pass
-    elif int(OWNER_ID) == update.from_user.id:
-        pass
-    else:
+    if OWNER_ID != 'all' and int(OWNER_ID) != update.from_user.id:
         return
 
     if int(media_group_id) != int(update.media_group_id):
@@ -136,24 +126,28 @@ async def _main_grop(bot, update):
         copied = (await bot.copy_media_group(TRACK_CHANNEL, update.from_user.id, update.message_id))[0]
         await __reply(update, copied)
 
-    else:
-        # This handler catch EVERY message with [update.media_group_id] param
-        # So we should ignore next >1_media_group_id messages
-        return
 
-
-# Store file
+# Single media handler
 @xbot.on_message(filters.media & filters.private & ~filters.media_group)
-async def _main(bot, update):
-    if OWNER_ID == 'all':
-        pass
-    elif int(OWNER_ID) == update.from_user.id:
-        pass
-    else:
+async def media_handler(bot, update):
+    if OWNER_ID != 'all' and int(OWNER_ID) != update.from_user.id:
         return
 
     copied = await update.copy(TRACK_CHANNEL)
     await __reply(update, copied)
 
+
+# Startup
+async def startup():
+    global xbot_username
+    await xbot.start()
+    xbot_username = (await xbot.get_me()).username
+    print(f"✅ Bot started as @{xbot_username}")
+    if OWNER_ID != 'all':
+        await xbot.send_message(int(OWNER_ID), "✅ Bot has started and is running!")
+    await idle()
+
+if __name__ == '__main__':
+    asyncio.run(startup())
 
 xbot.run()
