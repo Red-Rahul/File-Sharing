@@ -8,7 +8,7 @@ from pyrogram.idle import idle
 API_HASH = os.getenv('API_HASH', 'b33ae6134914c512d7f4246048af4a9c')
 APP_ID = int(os.getenv('APP_ID', '25075806'))
 BOT_TOKEN = os.getenv('BOT_TOKEN', '7151281361:AAGsXDCAyq2GPL5FlbC5kB8WYmbuLQpbRxg')
-TRACK_CHANNEL = os.getenv('TRACK_CHANNEL', 'File_sharing07_bot')
+TRACK_CHANNEL = os.getenv('TRACK_CHANNEL', 'filedatabase07')
 OWNER_ID = os.getenv('OWNER_ID', 'all')
 
 # Bot client
