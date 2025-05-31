@@ -149,5 +149,3 @@ async def startup():
 
 if __name__ == '__main__':
     asyncio.run(startup())
-
-xbot.run()
