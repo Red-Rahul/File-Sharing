@@ -5,8 +5,8 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 # Configs
 API_HASH = os.environ['API_HASH','b33ae6134914c512d7f4246048af4a9c']
 APP_ID = int(os.environ['APP_ID','25075806'])
-BOT_TOKEN = os.environ['BOT_TOKEN','7646764817:AAFk7FiZgLUyLJBaIZPF1rcitOvx0slGaEU']
-TRACK_CHANNEL = int(os.environ['TRACK_CHANNEL','redbot10_bot'])
+BOT_TOKEN = os.environ['BOT_TOKEN','7151281361:AAGsXDCAyq2GPL5FlbC5kB8WYmbuLQpbRxg']
+TRACK_CHANNEL = int(os.environ['TRACK_CHANNEL','File_sharing07_bot'])
 OWNER_ID = os.environ['OWNER_ID']
 
 #Button
